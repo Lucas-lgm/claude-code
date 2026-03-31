@@ -1,45 +1,45 @@
 # Claude Code Source - Buildable Research Fork
 
-> **可编译、可修改、可运行**的 Claude Code 源码研究版本。
+> A **buildable, modifiable, and runnable** version of the Claude Code source.
 
-基于 2026-03-31 通过 npm source map 公开暴露的 Claude Code 源码快照，经过完整的依赖反推和构建修复，使其可以编译和运行。
+Based on the Claude Code source snapshot publicly exposed on 2026-03-31 via an npm source map leak. The original snapshot contained only raw TypeScript source with no build configuration — it could not be compiled or run. This fork reconstructs the full build system and fixes all missing components to make it functional.
 
 ---
 
-## What's Different from the Original Snapshot
+## What Changed vs. the Original Snapshot
 
-原始快照（[beita6969/claude-code](https://github.com/beita6969/claude-code)）仅包含裸源码，**无法编译运行**。本仓库做了以下修复：
+The original snapshot shipped **no `package.json`, no `tsconfig.json`, no lockfile, and no build scripts**. Over 100 internal/feature-gated modules were also missing from the source map.
 
-### Build System Reconstruction
+### Build System (Reconstructed)
 
 | File | Purpose |
 |------|---------|
-| `package.json` | **从 1900 个源文件中反推出 60+ npm 依赖**及其版本 |
-| `tsconfig.json` | TypeScript 编译配置（ESNext + JSX + Bun runtime） |
-| `bunfig.toml` | Bun 运行时配置 |
-| `.gitignore` | 排除 node_modules/dist 等 |
+| `package.json` | 60+ npm dependencies reverse-engineered from ~1,900 source files |
+| `tsconfig.json` | TypeScript config (ESNext + JSX + Bun bundler resolution) |
+| `bunfig.toml` | Bun runtime configuration |
+| `.gitignore` | Excludes `node_modules/`, `dist/`, lockfiles |
 
-### Stub Modules for Internal/Missing Components
+### Stub Modules (Created)
 
-原始源码中有大量 **Anthropic 内部私有包**和**被 feature flag 保护的缺失模块**。我们为所有缺失组件创建了最小化 stub：
+The original source imports many Anthropic-internal packages and feature-gated modules that were not included in the leak. Minimal stubs were created so the build completes:
 
-| Category | Count | Description |
-|----------|-------|-------------|
-| **Anthropic internal packages** (`@ant/*`) | 4 | computer-use-mcp, computer-use-swift, computer-use-input, claude-for-chrome-mcp |
-| **Native addons** | 3 | color-diff-napi, audio-capture-napi, modifiers-napi |
-| **Cloud provider SDKs** | 6 | Bedrock/Foundry/Vertex SDK, AWS STS, Azure Identity (stubbed to avoid heavy downloads) |
-| **OpenTelemetry exporters** | 10 | OTLP gRPC/HTTP/Proto exporters (stubbed) |
-| **Other optional packages** | 2 | sharp (image processing), turndown (HTML-to-MD) |
-| **Feature-gated source modules** | ~90 | Tools, commands, services, components that were excluded from the source map |
+| Category | Count | Examples |
+|----------|-------|---------|
+| Anthropic internal packages (`@ant/*`) | 4 | computer-use-mcp, computer-use-swift, claude-for-chrome-mcp |
+| Native addons | 3 | color-diff-napi, audio-capture-napi, modifiers-napi |
+| Cloud provider SDKs | 6 | Bedrock/Foundry/Vertex SDK, AWS STS, Azure Identity |
+| OpenTelemetry exporters | 10 | OTLP gRPC/HTTP/Proto exporters |
+| Other optional packages | 2 | sharp, turndown |
+| Feature-gated source modules | ~90 | Tools, commands, services, components excluded from the source map |
 
-### Source Code Fixes
+### Source Fixes
 
 | File | Change |
 |------|--------|
-| `src/main.tsx` | Added runtime `MACRO` constant injection (compile-time in production) |
+| `src/main.tsx` | Runtime `MACRO` constant injection (compile-time define in production) |
 | `src/main.tsx` | Fixed Commander.js `-d2e` short flag incompatibility |
 | `src/bootstrap/state.ts` | Added missing `isReplBridgeActive()` export |
-| `src/types/connectorText.ts` | Added `isConnectorTextBlock` function |
+| `src/types/connectorText.ts` | Added `isConnectorTextBlock` function stub |
 | `src/tools/WorkflowTool/constants.ts` | Added `WORKFLOW_TOOL_NAME` export |
 | `node_modules/bundle/` | Runtime polyfill for `bun:bundle` feature flag system |
 
@@ -55,7 +55,6 @@
 ### Install & Build
 
 ```bash
-# Clone
 git clone https://github.com/beita6969/claude-code.git
 cd claude-code
 
@@ -79,7 +78,7 @@ bun src/main.tsx -p "your prompt here" --output-format json
 bun src/main.tsx
 ```
 
-> **Note**: If you have `ANTHROPIC_API_KEY` set in your environment, make sure it is valid. Otherwise unset it to use OAuth authentication:
+> **Note**: If `ANTHROPIC_API_KEY` is set in your environment, it must be valid. To use OAuth instead, unset it:
 > ```bash
 > unset ANTHROPIC_API_KEY
 > ```
@@ -145,7 +144,7 @@ src/
 
 ## Feature Flags
 
-The `bun:bundle` `feature()` function controls feature gating. In this research build, all features default to **disabled**. To enable features, edit `node_modules/bundle/index.js`:
+The `bun:bundle` `feature()` function controls feature gating. In this build, all features default to **disabled**. To enable features, edit `node_modules/bundle/index.js`:
 
 ```javascript
 const ENABLED_FEATURES = new Set([
@@ -192,4 +191,4 @@ const ENABLED_FEATURES = new Set([
 - This repository is for **educational and research purposes only**.
 - The original Claude Code source is the property of **Anthropic**.
 - This repository is **not affiliated with, endorsed by, or maintained by Anthropic**.
-- Original source exposure identified on 2026-03-31 via npm source map leak.
+- Original source exposure: 2026-03-31 via npm source map leak.
