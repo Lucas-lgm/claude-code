@@ -1,4 +1,2 @@
-// Stub for color-diff-napi (native addon, not published)
-export class ColorDiff { diff() { return [] } }
-export class ColorFile {}
-export function getSyntaxTheme() { return {} }
+// Re-export the pure TypeScript port instead of the native NAPI addon
+export { ColorDiff, ColorFile, getSyntaxTheme } from '../../native-ts/color-diff/index.js'
