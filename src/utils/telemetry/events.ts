@@ -22,17 +22,8 @@ export async function logOTelEvent(
   eventName: string,
   metadata: { [key: string]: string | undefined } = {},
 ): Promise<void> {
-  const eventLogger = getEventLogger()
-  if (!eventLogger) {
-    if (!hasWarnedNoEventLogger) {
-      hasWarnedNoEventLogger = true
-      logForDebugging(
-        `[3P telemetry] Event dropped (no event logger initialized): ${eventName}`,
-        { level: 'warn' },
-      )
-    }
-    return
-  }
+  // PRIVACY: OTel event logging unconditionally disabled
+  return
 
   // Skip logging in test environment
   if (process.env.NODE_ENV === 'test') {

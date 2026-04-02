@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/entrypoints/cli.tsx",
   "bin": {
-    "claude": "dist/cli.js"
+    "claude": "bin/claude"
   },
   "scripts": {
     "dev": "bun run src/entrypoints/cli.tsx",

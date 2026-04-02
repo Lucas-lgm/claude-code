@@ -124,21 +124,7 @@ function ensureCleanupInterval(): void {
  * Priority: env var override > ant build > GrowthBook gate
  */
 export function isEnhancedTelemetryEnabled(): boolean {
-  if (feature('ENHANCED_TELEMETRY_BETA')) {
-    const env =
-      process.env.CLAUDE_CODE_ENHANCED_TELEMETRY_BETA ??
-      process.env.ENABLE_ENHANCED_TELEMETRY_BETA
-    if (isEnvTruthy(env)) {
-      return true
-    }
-    if (isEnvDefinedFalsy(env)) {
-      return false
-    }
-    return (
-      process.env.USER_TYPE === 'ant' ||
-      getFeatureValue_CACHED_MAY_BE_STALE('enhanced_telemetry_beta', false)
-    )
-  }
+  // PRIVACY: Enhanced telemetry unconditionally disabled
   return false
 }
 
