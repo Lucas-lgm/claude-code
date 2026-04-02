@@ -1122,12 +1122,14 @@ export class QueryEngine {
     let isApiError = false
 
     if (result.type === 'assistant') {
-      const lastContent = last(result.message.content)
-      if (
-        lastContent?.type === 'text' &&
-        !SYNTHETIC_MESSAGES.has(lastContent.text)
-      ) {
-        textResult = lastContent.text
+      const lastTextBlock = [...result.message.content]
+        .reverse()
+        .find(
+          block =>
+            block.type === 'text' && !SYNTHETIC_MESSAGES.has(block.text),
+        )
+      if (lastTextBlock?.type === 'text') {
+        textResult = lastTextBlock.text
       }
       isApiError = Boolean(result.isApiErrorMessage)
     }

@@ -930,7 +930,8 @@ export async function runHeadless(
       break
     default:
       if (!lastMessage || lastMessage.type !== 'result') {
-        throw new Error('No messages returned')
+        writeToStdout('Error: No messages returned\n')
+        break
       }
       switch (lastMessage.subtype) {
         case 'success':
