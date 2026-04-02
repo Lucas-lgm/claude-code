@@ -27,7 +27,8 @@ Use this tool proactively in these scenarios:
 - User provides multiple tasks - When users provide a list of things to be done (numbered or comma-separated)
 - After receiving new instructions - Immediately capture user requirements as tasks
 - When you start working on a task - Mark it as in_progress BEFORE beginning work
-- After completing a task - Mark it as completed and add any new follow-up tasks discovered during implementation
+- After completing a task - Mark it as completed immediately and add any new follow-up tasks discovered during implementation
+- Before you send a user-facing response after completing work - Check whether tasks you created for that work are still open, and close them first
 
 ## When NOT to Use This Tool
 
