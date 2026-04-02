@@ -148,6 +148,13 @@ function getLanguageSection(
 Always respond in ${languagePreference}. Use ${languagePreference} for all explanations, comments, and communications with the user. Technical terms and code identifiers should remain in their original form.`
 }
 
+function getOpenAICodeReadingSection(): string | null {
+  if (!isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI)) return null
+
+  return `# OpenAI tool-use guardrail
+For any question about repository code, implementation, file responsibilities, code behavior, or whether a change exists, inspect the relevant files with Read, Grep, or Glob before answering. Do not answer from prior knowledge, memory, or filenames alone.`
+}
+
 function getOutputStyleSection(
   outputStyleConfig: OutputStyleConfig | null,
 ): string | null {
@@ -501,6 +508,9 @@ ${CYBER_RISK_INSTRUCTION}`,
     ),
     systemPromptSection('language', () =>
       getLanguageSection(settings.language),
+    ),
+    systemPromptSection('openai_code_reading', () =>
+      getOpenAICodeReadingSection(),
     ),
     systemPromptSection('output_style', () =>
       getOutputStyleSection(outputStyleConfig),

@@ -109,6 +109,15 @@ import {
   incrementBudgetContinuationCount,
 } from './bootstrap/state.js'
 import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
+import {
+  buildAgentBudgetSystemContext,
+  createAgentBudgetTracker,
+  getAgentBudgetState,
+  recordAgentBudgetToolResult,
+  recordAgentBudgetToolUses,
+  recordAgentBudgetUsage,
+  shouldBlockToolUseByBudget,
+} from './query/agentBudget.js'
 import { count } from './utils/array.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -278,6 +287,9 @@ async function* queryLoop(
     transition: undefined,
   }
   const budgetTracker = feature('TOKEN_BUDGET') ? createBudgetTracker() : null
+  const agentBudgetTracker = createAgentBudgetTracker({
+    enabled: !state.toolUseContext.agentId,
+  })
 
   // task_budget.remaining tracking across compaction boundaries. Undefined
   // until first compact fires — while context is uncompacted the server can
@@ -446,8 +458,12 @@ async function* queryLoop(
       messagesForQuery = collapseResult.messages
     }
 
+    const agentBudgetContext = buildAgentBudgetSystemContext(agentBudgetTracker)
     const fullSystemPrompt = asSystemPrompt(
-      appendSystemContext(systemPrompt, systemContext),
+      appendSystemContext(systemPrompt, {
+        ...systemContext,
+        ...(agentBudgetContext ? { budgetStatus: agentBudgetContext } : {}),
+      }),
     )
 
     queryCheckpoint('query_autocompact_start')
@@ -825,6 +841,7 @@ async function* queryLoop(
             }
             if (message.type === 'assistant') {
               assistantMessages.push(message)
+              recordAgentBudgetUsage(agentBudgetTracker, message.message.usage)
 
               const msgToolUseBlocks = message.message.content.filter(
                 content => content.type === 'tool_use',
@@ -1361,7 +1378,7 @@ async function* queryLoop(
     let updatedToolUseContext = toolUseContext
 
     queryCheckpoint('query_tool_execution_start')
-
+    recordAgentBudgetToolUses(agentBudgetTracker, toolUseBlocks)
 
     if (streamingToolExecutor) {
       logEvent('tengu_streaming_tool_execution_used', {
@@ -1377,13 +1394,61 @@ async function* queryLoop(
       })
     }
 
+    const blockedToolUseBlocks: ToolUseBlock[] = []
+    const allowedToolUseBlocks: ToolUseBlock[] = []
+    const blockedBudgetMessages: UserMessage[] = []
+
+    for (const toolUseBlock of toolUseBlocks) {
+      const decision = shouldBlockToolUseByBudget(
+        agentBudgetTracker,
+        toolUseBlock,
+      )
+      if (decision.blocked) {
+        blockedToolUseBlocks.push(toolUseBlock)
+        blockedBudgetMessages.push(
+          createUserMessage({
+            content: decision.reason!,
+            isMeta: true,
+          }),
+        )
+      } else {
+        allowedToolUseBlocks.push(toolUseBlock)
+      }
+    }
+
+    for (const blockedBudgetMessage of blockedBudgetMessages) {
+      yield blockedBudgetMessage
+      toolResults.push(blockedBudgetMessage)
+    }
+
     const toolUpdates = streamingToolExecutor
       ? streamingToolExecutor.getRemainingResults()
-      : runTools(toolUseBlocks, assistantMessages, canUseTool, toolUseContext)
+      : runTools(
+          allowedToolUseBlocks,
+          assistantMessages,
+          canUseTool,
+          toolUseContext,
+        )
 
     for await (const update of toolUpdates) {
       if (update.message) {
         yield update.message
+
+        if (update.message.type === 'user') {
+          const content = update.message.message.content
+          if (typeof content === 'string') {
+            recordAgentBudgetToolResult(agentBudgetTracker, content)
+          } else {
+            const textContent = content
+              .filter(block => 'content' in block)
+              .map(block => {
+                const value = block.content
+                return typeof value === 'string' ? value : ''
+              })
+              .join('\n')
+            recordAgentBudgetToolResult(agentBudgetTracker, textContent)
+          }
+        }
 
         if (
           update.message.type === 'attachment' &&
@@ -1535,11 +1600,21 @@ async function* queryLoop(
     // Be careful to do this after tool calls are done, because the API
     // will error if we interleave tool_result messages with regular user messages.
 
+    const agentBudgetState = getAgentBudgetState(agentBudgetTracker)
+
     // Instrumentation: Track message count before attachments
     logEvent('tengu_query_before_attachments', {
       messagesForQueryCount: messagesForQuery.length,
       assistantMessagesCount: assistantMessages.length,
       toolResultsCount: toolResults.length,
+      agentBudgetLevel:
+        agentBudgetState.budgetLevel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      agentBudgetRemainingPct: Math.round(
+        agentBudgetState.effortRemainingPct * 100,
+      ),
+      agentBudgetToolCallsRemaining: agentBudgetState.toolCallsRemaining,
+      agentBudgetDuplicateSearchCount: agentBudgetState.duplicateSearchCount,
+      agentBudgetRepeatedFailures: agentBudgetState.repeatedFailures,
       queryChainId: queryChainIdForAnalytics,
       queryDepth: queryTracking.depth,
     })
@@ -1652,6 +1727,15 @@ async function* queryLoop(
     logEvent('tengu_query_after_attachments', {
       totalToolResultsCount: toolResults.length,
       fileChangeAttachmentCount,
+      blockedToolUseCount: blockedToolUseBlocks.length,
+      agentBudgetLevel:
+        agentBudgetState.budgetLevel as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+      agentBudgetVerificationReserveActive:
+        agentBudgetState.verificationReserveActive,
+      agentBudgetExpensiveToolCallsRemaining:
+        agentBudgetState.expensiveToolCallsRemaining,
+      agentBudgetDuplicateSearchCount: agentBudgetState.duplicateSearchCount,
+      agentBudgetRepeatedFailures: agentBudgetState.repeatedFailures,
       queryChainId: queryChainIdForAnalytics,
       queryDepth: queryTracking.depth,
     })
