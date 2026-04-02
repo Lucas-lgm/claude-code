@@ -220,15 +220,31 @@ bun src/main.tsx --model gpt-5.4
 
 The OAuth flow uses the same PKCE protocol as OpenAI's Codex CLI (client ID `app_EMoamEEZ73f0CkXaXp7hrann`).
 
-**Method 3: Compatible API (Third-Party / Proxy)**
+**Method 3: Compatible API (Third-Party / Proxy / Self-Hosted)**
+
+Any service that implements the OpenAI `/v1/chat/completions` endpoint can be used as a backend.
 
 ```bash
 export CLAUDE_CODE_USE_OPENAI=1
 export OPENAI_API_KEY=your-key
-export OPENAI_BASE_URL=https://your-proxy.com/v1
+export OPENAI_BASE_URL=https://your-api-endpoint.com/v1
 
 bun src/main.tsx --model gpt-5.4 -p "your prompt"
 ```
+
+Common compatible services:
+
+| Service | Example `OPENAI_BASE_URL` | Notes |
+|---------|---------------------------|-------|
+| OpenAI Official | (leave unset) | Default `https://api.openai.com/v1` |
+| Azure OpenAI | `https://{resource}.openai.azure.com/openai/deployments/{deployment}` | Use Azure API key |
+| vLLM | `http://localhost:8000/v1` | Local model serving |
+| Ollama | `http://localhost:11434/v1` | Local models via Ollama |
+| LiteLLM | `http://localhost:4000/v1` | Multi-provider proxy |
+| OpenRouter | `https://openrouter.ai/api/v1` | Model routing service |
+| Custom Proxy | `https://your-proxy.com/v1` | Any OpenAI-compatible relay |
+
+> **Requirements**: The backend must support streaming (`stream: true`), `stream_options.include_usage`, and the tool/function calling protocol. The `--model` value is passed directly to the backend as-is — use whatever model name your service expects.
 
 ### Supported Models
 
@@ -249,9 +265,21 @@ bun src/main.tsx --model gpt-5.4 -p "your prompt"
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `CLAUDE_CODE_USE_OPENAI` | Yes | Set to `1` to enable OpenAI mode |
-| `OPENAI_API_KEY` | Yes* | OpenAI API key (`sk-proj-...`). Not required if using OAuth. |
+| `OPENAI_API_KEY` | Yes* | OpenAI API key. Not required if using OAuth. |
 | `OPENAI_BASE_URL` | No | Custom API endpoint for compatible APIs |
+| `OPENAI_USE_CHAT_COMPLETIONS` | No | Set to `1` to use legacy `/v1/chat/completions` instead of `/v1/responses` |
 | `ANTHROPIC_MODEL` | No | Override default model (e.g., `gpt-5.4`) |
+
+### API Mode
+
+The adapter supports two OpenAI API formats:
+
+| Mode | Endpoint | Default | Env Override |
+|------|----------|---------|-------------|
+| **Responses API** | `/v1/responses` | Yes (default) | — |
+| **Chat Completions** | `/v1/chat/completions` | No | `OPENAI_USE_CHAT_COMPLETIONS=1` |
+
+The **Responses API** is OpenAI's newer format used by GPT-5.x and Codex. Most modern proxies and OpenAI-compatible services support this format. If your service only supports the legacy Chat Completions format (e.g., older vLLM, Ollama), set `OPENAI_USE_CHAT_COMPLETIONS=1`.
 
 ### Feature Compatibility
 

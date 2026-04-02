@@ -176,6 +176,8 @@ export async function getAnthropicClient({
     return createOpenAIAdapter({
       apiKey: openaiApiKey,
       baseURL: process.env.OPENAI_BASE_URL,
+      // Default to Responses API; set OPENAI_USE_CHAT_COMPLETIONS=1 for legacy /v1/chat/completions
+      useResponsesAPI: !isEnvTruthy(process.env.OPENAI_USE_CHAT_COMPLETIONS),
       maxRetries: 0,
       timeout: ARGS.timeout,
       defaultHeaders: defaultHeaders,
