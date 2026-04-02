@@ -1,3 +1,24 @@
+// Runtime MACRO injection (compile-time constant in production Bun builds)
+if (typeof globalThis.MACRO === 'undefined') {
+  (globalThis as any).MACRO = {
+    VERSION: '2.1.87',
+    BUILD_TIME: new Date().toISOString(),
+    PACKAGE_URL: '@anthropic-ai/claude-code',
+    NATIVE_PACKAGE_URL: undefined,
+    FEEDBACK_CHANNEL: '#claude-code-research',
+    ISSUES_EXPLAINER: 'https://github.com/beita6969/claude-code/issues',
+    VERSION_CHANGELOG: '',
+  };
+}
+
+// ============================================================
+// PRIVACY: Disable ALL telemetry, analytics, and non-essential
+// network traffic before any module loads.
+// ============================================================
+process.env.DISABLE_TELEMETRY = '1';
+process.env.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC = '1';
+process.env.DO_NOT_TRACK = '1';
+
 import { feature } from 'bun:bundle';
 
 // Bugfix for corepack auto-pinning, which adds yarnpkg to peoples' package.jsons

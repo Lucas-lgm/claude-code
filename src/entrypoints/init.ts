@@ -245,44 +245,9 @@ export const init = memoize(async (): Promise<void> => {
  * This should only be called once, after the trust dialog has been accepted.
  */
 export function initializeTelemetryAfterTrust(): void {
-  if (isEligibleForRemoteManagedSettings()) {
-    // For SDK/headless mode with beta tracing, initialize eagerly first
-    // to ensure the tracer is ready before the first query runs.
-    // The async path below will still run but doInitializeTelemetry() guards against double init.
-    if (getIsNonInteractiveSession() && isBetaTracingEnabled()) {
-      void doInitializeTelemetry().catch(error => {
-        logForDebugging(
-          `[3P telemetry] Eager telemetry init failed (beta tracing): ${errorMessage(error)}`,
-          { level: 'error' },
-        )
-      })
-    }
-    logForDebugging(
-      '[3P telemetry] Waiting for remote managed settings before telemetry init',
-    )
-    void waitForRemoteManagedSettingsToLoad()
-      .then(async () => {
-        logForDebugging(
-          '[3P telemetry] Remote managed settings loaded, initializing telemetry',
-        )
-        // Re-apply env vars to pick up remote settings before initializing telemetry.
-        applyConfigEnvironmentVariables()
-        await doInitializeTelemetry()
-      })
-      .catch(error => {
-        logForDebugging(
-          `[3P telemetry] Telemetry init failed (remote settings path): ${errorMessage(error)}`,
-          { level: 'error' },
-        )
-      })
-  } else {
-    void doInitializeTelemetry().catch(error => {
-      logForDebugging(
-        `[3P telemetry] Telemetry init failed: ${errorMessage(error)}`,
-        { level: 'error' },
-      )
-    })
-  }
+  // PRIVACY: telemetry initialization completely disabled
+  logForDebugging('[3P telemetry] Telemetry disabled — skipping initialization')
+  return
 }
 
 async function doInitializeTelemetry(): Promise<void> {

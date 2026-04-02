@@ -3,10 +3,14 @@
   "version": "0.1.0",
   "description": "Claude Code source research build",
   "type": "module",
-  "main": "src/main.tsx",
+  "main": "src/entrypoints/cli.tsx",
+  "bin": {
+    "claude": "dist/cli.js"
+  },
   "scripts": {
-    "dev": "bun run src/main.tsx",
-    "build": "bun build src/main.tsx --outdir=dist --target=bun --sourcemap",
+    "dev": "bun run src/entrypoints/cli.tsx",
+    "build": "bun build src/entrypoints/cli.tsx --outdir=dist --target=bun --sourcemap",
+    "start": "bun dist/cli.js",
     "typecheck": "bun x tsc --noEmit",
     "check": "bun x tsc --noEmit 2>&1 | head -100"
   },

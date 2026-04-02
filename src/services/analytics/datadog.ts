@@ -161,6 +161,9 @@ export async function trackDatadogEvent(
   eventName: string,
   properties: { [key: string]: boolean | number | undefined },
 ): Promise<void> {
+  // PRIVACY: Datadog event tracking unconditionally disabled
+  return
+
   if (process.env.NODE_ENV !== 'production') {
     return
   }

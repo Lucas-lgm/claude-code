@@ -2360,13 +2360,10 @@ async function run(): Promise<CommanderCommand> {
     if (!skipStartupPrefetches) {
       const lastPrefetchedInfo = lastPrefetched > 0 ? ` last ran ${Math.round((Date.now() - lastPrefetched) / 1000)}s ago` : '';
       logForDebugging(`Starting background startup prefetches${lastPrefetchedInfo}`);
-      checkQuotaStatus().catch(error => logError(error));
-
-      // Fetch bootstrap data from the server and update all cache values.
-      void fetchBootstrapData();
-
-      // TODO: Consolidate other prefetches into a single bootstrap request.
-      void prefetchPassesEligibility();
+      // PRIVACY: quota check, bootstrap data, and referral eligibility disabled
+      // checkQuotaStatus().catch(error => logError(error));
+      // void fetchBootstrapData();
+      // void prefetchPassesEligibility();
       if (!getFeatureValue_CACHED_MAY_BE_STALE('tengu_miraculo_the_bard', false)) {
         void prefetchFastModeStatus();
       } else {

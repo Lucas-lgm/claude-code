@@ -93,33 +93,9 @@ let sink: AnalyticsSink | null = null
  * the default command) without coordination.
  */
 export function attachAnalyticsSink(newSink: AnalyticsSink): void {
-  if (sink !== null) {
-    return
-  }
-  sink = newSink
-
-  // Drain the queue asynchronously to avoid blocking startup
-  if (eventQueue.length > 0) {
-    const queuedEvents = [...eventQueue]
-    eventQueue.length = 0
-
-    // Log queue size for ants to help debug analytics initialization timing
-    if (process.env.USER_TYPE === 'ant') {
-      sink.logEvent('analytics_sink_attached', {
-        queued_event_count: queuedEvents.length,
-      })
-    }
-
-    queueMicrotask(() => {
-      for (const event of queuedEvents) {
-        if (event.async) {
-          void sink!.logEventAsync(event.eventName, event.metadata)
-        } else {
-          sink!.logEvent(event.eventName, event.metadata)
-        }
-      }
-    })
-  }
+  // PRIVACY: never attach any analytics sink — all events are dropped
+  eventQueue.length = 0
+  return
 }
 
 /**
@@ -136,11 +112,8 @@ export function logEvent(
   // to avoid accidentally logging code/filepaths
   metadata: LogEventMetadata,
 ): void {
-  if (sink === null) {
-    eventQueue.push({ eventName, metadata, async: false })
-    return
-  }
-  sink.logEvent(eventName, metadata)
+  // PRIVACY: no-op — all event logging disabled
+  return
 }
 
 /**
@@ -156,11 +129,8 @@ export async function logEventAsync(
   // intentionally no strings, to avoid accidentally logging code/filepaths
   metadata: LogEventMetadata,
 ): Promise<void> {
-  if (sink === null) {
-    eventQueue.push({ eventName, metadata, async: true })
-    return
-  }
-  await sink.logEventAsync(eventName, metadata)
+  // PRIVACY: no-op — all async event logging disabled
+  return
 }
 
 /**

@@ -107,8 +107,6 @@ export function initializeAnalyticsGates(): void {
  * Idempotent: safe to call multiple times (subsequent calls are no-ops).
  */
 export function initializeAnalyticsSink(): void {
-  attachAnalyticsSink({
-    logEvent: logEventImpl,
-    logEventAsync: logEventAsyncImpl,
-  })
+  // PRIVACY: analytics sink disabled — no events will be sent
+  return
 }
