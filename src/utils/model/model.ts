@@ -216,6 +216,18 @@ export function getDefaultMainLoopModel(): ModelName {
  */
 export function firstPartyNameToCanonical(name: ModelName): ModelShortName {
   name = name.toLowerCase()
+  // OpenAI models - return canonical name directly
+  if (name.includes('gpt-5.4-nano')) return 'gpt-5.4-nano'
+  if (name.includes('gpt-5.4-mini')) return 'gpt-5.4-mini'
+  if (name.includes('gpt-5.4')) return 'gpt-5.4'
+  if (name.includes('gpt-5.3')) return 'gpt-5.3'
+  if (name.includes('gpt-4o-mini')) return 'gpt-4o-mini'
+  if (name.includes('gpt-4o')) return 'gpt-4o'
+  if (name.includes('gpt-4.1-mini')) return 'gpt-4.1-mini'
+  if (name.includes('gpt-4.1')) return 'gpt-4.1'
+  if (name.includes('o4-mini')) return 'o4-mini'
+  if (name.includes('o3-pro')) return 'o3-pro'
+  if (name.includes('o3')) return 'o3'
   // Special cases for Claude 4+ models to differentiate versions
   // Order matters: check more specific versions first (4-5 before 4)
   if (name.includes('claude-opus-4-6')) {
@@ -378,6 +390,29 @@ export function getPublicModelDisplayName(model: ModelName): string | null {
       return 'Haiku 4.5'
     case getModelStrings().haiku35:
       return 'Haiku 3.5'
+    // OpenAI models
+    case 'gpt-5.4':
+      return 'GPT-5.4'
+    case 'gpt-5.4-mini':
+      return 'GPT-5.4 Mini'
+    case 'gpt-5.4-nano':
+      return 'GPT-5.4 Nano'
+    case 'gpt-5.3':
+      return 'GPT-5.3'
+    case 'gpt-4o':
+      return 'GPT-4o'
+    case 'gpt-4o-mini':
+      return 'GPT-4o Mini'
+    case 'gpt-4.1':
+      return 'GPT-4.1'
+    case 'gpt-4.1-mini':
+      return 'GPT-4.1 Mini'
+    case 'o3':
+      return 'o3'
+    case 'o3-pro':
+      return 'o3 Pro'
+    case 'o4-mini':
+      return 'o4-mini'
     default:
       return null
   }
@@ -425,6 +460,11 @@ export function renderModelName(model: ModelName): string {
 export function getPublicModelName(model: ModelName): string {
   const publicName = getPublicModelDisplayName(model)
   if (publicName) {
+    // For OpenAI models, don't prefix with "Claude"
+    const canonical = getCanonicalName(model)
+    if (canonical.startsWith('gpt-') || canonical.startsWith('o3') || canonical.startsWith('o4')) {
+      return publicName
+    }
     return `Claude ${publicName}`
   }
   return `Claude (${model})`
@@ -465,6 +505,10 @@ export function parseUserSpecifiedModel(
         return getDefaultOpusModel() + (has1mTag ? '[1m]' : '')
       case 'best':
         return getBestModel()
+      case 'gpt':
+        return 'gpt-5.4' + (has1mTag ? '[1m]' : '')
+      case 'o3':
+        return 'o3'
       default:
     }
   }
@@ -608,6 +652,11 @@ export function getMarketingNameForModel(modelId: string): string | undefined {
   }
   if (canonical.includes('claude-3-5-haiku')) {
     return 'Claude 3.5 Haiku'
+  }
+
+  // OpenAI models
+  if (canonical.startsWith('gpt-') || canonical.startsWith('o3') || canonical.startsWith('o4')) {
+    return getPublicModelDisplayName(canonical) ?? undefined
   }
 
   return undefined

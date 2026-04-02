@@ -28,6 +28,7 @@ import {
   getVertexRegionForModel,
   isEnvTruthy,
 } from '../../utils/envUtils.js'
+import { createOpenAIAdapter } from './openai-adapter.js'
 
 /**
  * Environment variables for different client types:
@@ -150,6 +151,37 @@ export async function getAnthropicClient({
       fetch: resolvedFetch,
     }),
   }
+  // OpenAI provider — return adapter that translates Anthropic format to OpenAI
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI)) {
+    // Try API key from env, then stored OAuth token
+    let openaiApiKey = process.env.OPENAI_API_KEY
+    if (!openaiApiKey) {
+      try {
+        const { loadOpenAITokens } = await import('./openai-tokens.js')
+        const tokens = await loadOpenAITokens()
+        if (tokens?.accessToken) {
+          openaiApiKey = tokens.accessToken
+        }
+      } catch {
+        // Token loading failed, will fall through to error
+      }
+    }
+    if (!openaiApiKey) {
+      throw new Error(
+        'OPENAI_API_KEY environment variable is required when CLAUDE_CODE_USE_OPENAI is enabled. ' +
+        'Set OPENAI_API_KEY or run "claude auth login --provider openai" to authenticate.',
+      )
+    }
+    return createOpenAIAdapter({
+      apiKey: openaiApiKey,
+      baseURL: process.env.OPENAI_BASE_URL,
+      maxRetries: 0,
+      timeout: ARGS.timeout,
+      defaultHeaders: defaultHeaders,
+      fetch: resolvedFetch as any,
+    })
+  }
+
   if (isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK)) {
     const { AnthropicBedrock } = await import('@anthropic-ai/bedrock-sdk')
     // Use region override for small fast model if specified

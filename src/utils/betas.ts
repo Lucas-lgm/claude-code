@@ -99,6 +99,9 @@ export function modelSupportsISP(model: string): boolean {
   }
   const canonical = getCanonicalName(model)
   const provider = getAPIProvider()
+  if (provider === 'openai') {
+    return false
+  }
   // Foundry supports interleaved thinking for all models
   if (provider === 'foundry') {
     return true
@@ -125,6 +128,9 @@ function vertexModelSupportsWebSearch(model: string): boolean {
 export function modelSupportsContextManagement(model: string): boolean {
   const canonical = getCanonicalName(model)
   const provider = getAPIProvider()
+  if (provider === 'openai') {
+    return false
+  }
   if (provider === 'foundry') {
     return true
   }
@@ -235,6 +241,11 @@ export const getAllModelBetas = memoize((model: string): string[] => {
   const betaHeaders = []
   const isHaiku = getCanonicalName(model).includes('haiku')
   const provider = getAPIProvider()
+
+  // OpenAI doesn't use Anthropic beta headers
+  if (provider === 'openai') {
+    return []
+  }
   const includeFirstPartyOnlyBetas = shouldIncludeFirstPartyOnlyBetas()
 
   if (!isHaiku) {

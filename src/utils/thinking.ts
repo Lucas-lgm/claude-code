@@ -100,6 +100,10 @@ export function modelSupportsThinking(model: string): boolean {
   // IMPORTANT: Do not change thinking support without notifying the model
   // launch DRI and research. This can greatly affect model quality and bashing.
   const canonical = getCanonicalName(model)
+  // OpenAI models don't support Anthropic's thinking protocol
+  if (canonical.startsWith('gpt-') || canonical.startsWith('o3') || canonical.startsWith('o4')) {
+    return false
+  }
   const provider = getAPIProvider()
   // 1P and Foundry: all Claude 4+ models (including Haiku 4.5)
   if (provider === 'foundry' || provider === 'firstParty') {
@@ -116,6 +120,10 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
     return supported3P
   }
   const canonical = getCanonicalName(model)
+  // OpenAI models don't support Anthropic adaptive thinking
+  if (canonical.startsWith('gpt-') || canonical.startsWith('o3') || canonical.startsWith('o4')) {
+    return false
+  }
   // Supported by a subset of Claude 4 models
   if (canonical.includes('opus-4-6') || canonical.includes('sonnet-4-6')) {
     return true

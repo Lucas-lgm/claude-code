@@ -186,6 +186,100 @@ const ENABLED_FEATURES = new Set([
 
 ---
 
+## OpenAI Model Support
+
+This fork supports using OpenAI models (GPT-5.4, o3, o4-mini, etc.) as a drop-in replacement for Claude models. The adapter translates between Anthropic SDK format and OpenAI Chat Completions format transparently.
+
+### Quick Start
+
+**Method 1: API Key (Simplest)**
+
+```bash
+export CLAUDE_CODE_USE_OPENAI=1
+export OPENAI_API_KEY=sk-proj-xxx
+
+# Use specific model
+bun src/main.tsx --model gpt-5.4 -p "your prompt"
+
+# Use alias
+bun src/main.tsx --model gpt -p "your prompt"
+
+# Use reasoning model
+bun src/main.tsx --model o3 -p "your prompt"
+```
+
+**Method 2: OAuth Login (ChatGPT Account)**
+
+```bash
+export CLAUDE_CODE_USE_OPENAI=1
+
+# Trigger OAuth login — opens browser for ChatGPT sign-in
+# Token is stored at ~/.claude/.openai-auth.json and auto-refreshes
+bun src/main.tsx --model gpt-5.4
+```
+
+The OAuth flow uses the same PKCE protocol as OpenAI's Codex CLI (client ID `app_EMoamEEZ73f0CkXaXp7hrann`).
+
+**Method 3: Compatible API (Third-Party / Proxy)**
+
+```bash
+export CLAUDE_CODE_USE_OPENAI=1
+export OPENAI_API_KEY=your-key
+export OPENAI_BASE_URL=https://your-proxy.com/v1
+
+bun src/main.tsx --model gpt-5.4 -p "your prompt"
+```
+
+### Supported Models
+
+| Model | Alias | Type | Context Window |
+|-------|-------|------|----------------|
+| `gpt-5.4` | `gpt` | Flagship | 256K |
+| `gpt-5.4-mini` | — | Fast | 256K |
+| `gpt-5.4-nano` | — | Lightweight | 128K |
+| `gpt-5.3` | — | Previous gen | 256K |
+| `o3` | `o3` | Reasoning | 200K |
+| `o3-pro` | — | Max reasoning | 200K |
+| `o4-mini` | — | Fast reasoning | 200K |
+| `gpt-4o` | — | Legacy (API only) | 128K |
+| `gpt-4.1` | — | Legacy (API only) | 1M |
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `CLAUDE_CODE_USE_OPENAI` | Yes | Set to `1` to enable OpenAI mode |
+| `OPENAI_API_KEY` | Yes* | OpenAI API key (`sk-proj-...`). Not required if using OAuth. |
+| `OPENAI_BASE_URL` | No | Custom API endpoint for compatible APIs |
+| `ANTHROPIC_MODEL` | No | Override default model (e.g., `gpt-5.4`) |
+
+### Feature Compatibility
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Text generation | Full | All models |
+| Tool use / Function calling | Full | All models |
+| Streaming | Full | All models |
+| Image input (vision) | Full | base64 and URL formats |
+| Reasoning (thinking) | Partial | o3/o4-mini via `reasoning_effort: high` |
+| Prompt caching | N/A | OpenAI has no equivalent; annotations ignored |
+| Extended thinking | N/A | Anthropic-specific; disabled for OpenAI |
+| Web search (server tool) | N/A | Anthropic-specific |
+
+### How It Works
+
+The adapter (`src/services/api/openai-adapter.ts`) creates a fake Anthropic SDK client that:
+
+1. Converts Anthropic message format → OpenAI Chat Completions format
+2. Translates tool schemas (Anthropic `input_schema` → OpenAI `parameters`)
+3. Streams OpenAI `ChatCompletionChunk` events → Anthropic `BetaRawMessageStreamEvent`
+4. Maps stop reasons (`stop` → `end_turn`, `tool_calls` → `tool_use`)
+5. Wraps OpenAI errors into Anthropic SDK error types
+
+The rest of the codebase works unchanged — it only sees the Anthropic SDK interface.
+
+---
+
 ## Disclaimer
 
 - This repository is for **educational and research purposes only**.

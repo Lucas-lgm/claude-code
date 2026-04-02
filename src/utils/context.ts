@@ -164,6 +164,19 @@ export function getModelMaxOutputTokens(model: string): {
 
   const m = getCanonicalName(model)
 
+  // OpenAI models
+  if (m.startsWith('gpt-') || m.startsWith('o3') || m.startsWith('o4')) {
+    if (m.includes('o3') || m.includes('o4')) {
+      // Reasoning models have higher output limits
+      defaultTokens = 32_000
+      upperLimit = 100_000
+    } else {
+      defaultTokens = 16_384
+      upperLimit = 16_384
+    }
+    return { default: defaultTokens, upperLimit }
+  }
+
   if (m.includes('opus-4-6')) {
     defaultTokens = 64_000
     upperLimit = 128_000

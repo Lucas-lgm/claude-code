@@ -29,6 +29,10 @@ export function modelSupportsEffort(model: string): boolean {
   if (supported3P !== undefined) {
     return supported3P
   }
+  // OpenAI models don't support Anthropic's effort parameter
+  if (m.startsWith('gpt-') || m.startsWith('o3') || m.startsWith('o4')) {
+    return false
+  }
   // Supported by a subset of Claude 4 models
   if (m.includes('opus-4-6') || m.includes('sonnet-4-6')) {
     return true

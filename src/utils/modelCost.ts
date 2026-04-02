@@ -86,6 +86,39 @@ export const COST_HAIKU_45 = {
   webSearchRequests: 0.01,
 } as const satisfies ModelCosts
 
+// OpenAI pricing tiers (no prompt caching)
+export const COST_OPENAI_GPT54 = {
+  inputTokens: 2.5,
+  outputTokens: 10,
+  promptCacheWriteTokens: 0,
+  promptCacheReadTokens: 0,
+  webSearchRequests: 0.025,
+} as const satisfies ModelCosts
+
+export const COST_OPENAI_GPT54_MINI = {
+  inputTokens: 0.4,
+  outputTokens: 1.6,
+  promptCacheWriteTokens: 0,
+  promptCacheReadTokens: 0,
+  webSearchRequests: 0.025,
+} as const satisfies ModelCosts
+
+export const COST_OPENAI_O3 = {
+  inputTokens: 2,
+  outputTokens: 8,
+  promptCacheWriteTokens: 0,
+  promptCacheReadTokens: 0,
+  webSearchRequests: 0.025,
+} as const satisfies ModelCosts
+
+export const COST_OPENAI_O4_MINI = {
+  inputTokens: 1.1,
+  outputTokens: 4.4,
+  promptCacheWriteTokens: 0,
+  promptCacheReadTokens: 0,
+  webSearchRequests: 0.025,
+} as const satisfies ModelCosts
+
 const DEFAULT_UNKNOWN_MODEL_COST = COST_TIER_5_25
 
 /**
@@ -123,6 +156,18 @@ export const MODEL_COSTS: Record<ModelShortName, ModelCosts> = {
     COST_TIER_5_25,
   [firstPartyNameToCanonical(CLAUDE_OPUS_4_6_CONFIG.firstParty)]:
     COST_TIER_5_25,
+  // OpenAI models
+  'gpt-5.4': COST_OPENAI_GPT54,
+  'gpt-5.4-mini': COST_OPENAI_GPT54_MINI,
+  'gpt-5.4-nano': COST_OPENAI_GPT54_MINI,
+  'gpt-5.3': COST_OPENAI_GPT54,
+  'gpt-4o': COST_OPENAI_GPT54,
+  'gpt-4o-mini': COST_OPENAI_GPT54_MINI,
+  'gpt-4.1': COST_OPENAI_GPT54,
+  'gpt-4.1-mini': COST_OPENAI_GPT54_MINI,
+  'o3': COST_OPENAI_O3,
+  'o3-pro': COST_OPENAI_O3,
+  'o4-mini': COST_OPENAI_O4_MINI,
 }
 
 /**
