@@ -168,8 +168,9 @@ export async function getAnthropicClient({
     }
     if (!openaiApiKey) {
       throw new Error(
-        'OPENAI_API_KEY environment variable is required when CLAUDE_CODE_USE_OPENAI is enabled. ' +
-        'Set OPENAI_API_KEY or run "claude auth login --provider openai" to authenticate.',
+        'OpenAI authentication required. Either:\n' +
+        '  1. Run "claude-dev login" to authenticate via OAuth\n' +
+        '  2. Set OPENAI_API_KEY environment variable',
       )
     }
     return createOpenAIAdapter({

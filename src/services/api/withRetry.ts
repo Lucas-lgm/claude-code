@@ -11,7 +11,7 @@ import { isAwsCredentialsProviderError } from 'src/utils/aws.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { logError } from 'src/utils/log.js'
 import { createSystemAPIErrorMessage } from 'src/utils/messages.js'
-import { getAPIProviderForStatsig } from 'src/utils/model/providers.js'
+import { getAPIProvider, getAPIProviderForStatsig } from 'src/utils/model/providers.js'
 import {
   clearApiKeyHelperCache,
   clearAwsCredentialsCache,
@@ -229,6 +229,15 @@ export async function* withRetry<T>(
         disableKeepAlive()
       }
 
+      // OpenAI provider: 401 means invalid key, fail immediately
+      if (
+        getAPIProvider() === 'openai' &&
+        lastError instanceof APIError &&
+        lastError.status === 401
+      ) {
+        throw new CannotRetryError(lastError, retryContext)
+      }
+
       if (
         client === null ||
         (lastError instanceof APIError && lastError.status === 401) ||
@@ -252,6 +261,15 @@ export async function* withRetry<T>(
 
       return await operation(client, attempt, retryContext)
     } catch (error) {
+      // OpenAI provider: 401 means invalid key, fail immediately without retry
+      if (
+        getAPIProvider() === 'openai' &&
+        error instanceof APIError &&
+        error.status === 401
+      ) {
+        throw new CannotRetryError(error, retryContext)
+      }
+
       lastError = error
       logForDebugging(
         `API error (attempt ${attempt}/${maxRetries + 1}): ${error instanceof APIError ? `${error.status} ${error.message}` : errorMessage(error)}`,
@@ -766,6 +784,11 @@ function shouldRetry(error: APIError): boolean {
   // Enterprise users can retry because they typically use PAYG instead of rate limits
   if (error.status === 429) {
     return !isClaudeAISubscriber() || isEnterpriseSubscriber()
+  }
+
+  // OpenAI provider: 401 means invalid key, don't retry
+  if (getAPIProvider() === 'openai' && error.status === 401) {
+    return false
   }
 
   // Clear API key cache on 401 and allow retry.

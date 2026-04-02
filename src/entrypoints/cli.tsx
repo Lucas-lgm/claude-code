@@ -62,6 +62,25 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Fast-path for `claude login`: OpenAI OAuth login
+  if (args[0] === 'login') {
+    const { runOpenAIOAuthFlow } = await import('../services/oauth/openai.js')
+    const { saveOpenAITokens } = await import('../services/api/openai-tokens.js')
+    // biome-ignore lint/suspicious/noConsole: intentional
+    console.log('Starting OpenAI OAuth login...')
+    try {
+      const tokens = await runOpenAIOAuthFlow()
+      saveOpenAITokens(tokens)
+      // biome-ignore lint/suspicious/noConsole: intentional
+      console.log('Login successful! Token saved to ~/.claude/.openai-auth.json')
+    } catch (err) {
+      // biome-ignore lint/suspicious/noConsole: intentional
+      console.error('Login failed:', err instanceof Error ? err.message : err)
+      process.exit(1)
+    }
+    return
+  }
+
   // For all other paths, load the startup profiler
   const {
     profileCheckpoint

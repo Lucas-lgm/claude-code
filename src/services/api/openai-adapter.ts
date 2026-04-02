@@ -586,17 +586,17 @@ export function createOpenAIAdapter(
           })()
 
           // Add .withResponse() method
+          // Cache the promise so withResponse() awaits the same settled promise.
+          // If the promise rejected, re-throw the already-wrapped Anthropic error
+          // instead of double-wrapping it through wrapOpenAIError.
+          const settled = promise.catch((e: unknown) => { throw e })
           const result = Object.assign(promise, {
             withResponse: async () => {
-              try {
-                const data = await promise
-                return {
-                  data,
-                  request_id: `openai-${Date.now()}`,
-                  response: new Response(),
-                }
-              } catch (error) {
-                wrapOpenAIError(error)
+              const data = await settled
+              return {
+                data,
+                request_id: `openai-${Date.now()}`,
+                response: new Response(),
               }
             },
           })
