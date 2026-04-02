@@ -6,6 +6,7 @@ import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/grow
 import { getAPIProvider } from './model/providers.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
 import { isEnvTruthy } from './envUtils.js'
+import { getCanonicalName } from './model/model.js'
 import type { EffortLevel } from 'src/entrypoints/sdk/runtimeTypes.js'
 
 export type { EffortLevel }
@@ -29,10 +30,9 @@ export function modelSupportsEffort(model: string): boolean {
   if (supported3P !== undefined) {
     return supported3P
   }
-  // OpenAI models don't support Anthropic's effort parameter
-  if (m.startsWith('gpt-') || m.startsWith('o3') || m.startsWith('o4')) {
-    return false
-  }
+  // OpenAI GPT models don't support effort; reasoning models (o3/o4) do via reasoning_effort
+  if (m.startsWith('gpt-')) return false
+  if (m.startsWith('o3') || m.startsWith('o4')) return true
   // Supported by a subset of Claude 4 models
   if (m.includes('opus-4-6') || m.includes('sonnet-4-6')) {
     return true
@@ -324,6 +324,12 @@ export function getDefaultEffortForModel(
 
   // When ultrathink feature is on, default effort to medium (ultrathink bumps to high)
   if (isUltrathinkEnabled() && modelSupportsEffort(model)) {
+    return 'medium'
+  }
+
+  // OpenAI reasoning models: default to medium, ultrathink bumps to high
+  const canonical = getCanonicalName(model)
+  if (canonical.startsWith('o3') || canonical.startsWith('o4')) {
     return 'medium'
   }
 

@@ -176,6 +176,11 @@ export function getRuntimeMainLoopModel(params: {
  * @returns The default model setting to use
  */
 export function getDefaultMainLoopModelSetting(): ModelName | ModelAlias {
+  // OpenAI provider defaults to GPT-5.4
+  if (getAPIProvider() === 'openai') {
+    return 'gpt-5.4'
+  }
+
   // Ants default to defaultModel from flag config, or Opus 1M if not configured
   if (process.env.USER_TYPE === 'ant') {
     return (

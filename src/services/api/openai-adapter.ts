@@ -539,6 +539,14 @@ export function createOpenAIAdapter(
           // Detect reasoning models (o-series)
           const isReasoningModel = /^o[34]/.test(params.model)
 
+          // Map Anthropic effort to OpenAI reasoning_effort
+          let reasoningEffort: 'low' | 'medium' | 'high' = 'high'
+          if (isReasoningModel) {
+            const anthropicEffort = (params as any).output?.effort
+            if (anthropicEffort === 'low') reasoningEffort = 'low'
+            else if (anthropicEffort === 'medium') reasoningEffort = 'medium'
+          }
+
           const openaiParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
             model: params.model,
             messages: openaiMessages,
@@ -549,8 +557,7 @@ export function createOpenAIAdapter(
             ...(!isReasoningModel && { temperature: params.temperature ?? undefined }),
             ...(openaiTools && { tools: openaiTools }),
             ...(openaiTools && toolChoice && { tool_choice: toolChoice }),
-            // Map Anthropic thinking to OpenAI reasoning_effort
-            ...(isReasoningModel && { reasoning_effort: 'high' }),
+            ...(isReasoningModel && { reasoning_effort: reasoningEffort }),
           }
 
           const abortController = new AbortController()
