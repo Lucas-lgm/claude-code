@@ -287,8 +287,12 @@ async function* queryLoop(
     transition: undefined,
   }
   const budgetTracker = feature('TOKEN_BUDGET') ? createBudgetTracker() : null
+  // Agent budget guardrails are designed for subagent contexts, not the main
+  // query loop. Disable when running as the main thread. Also always disable
+  // under OpenAI provider — its token counts differ significantly from Claude
+  // and the effort formula burns through the default 60k budget in a few turns.
   const agentBudgetTracker = createAgentBudgetTracker({
-    enabled: !state.toolUseContext.agentId,
+    enabled: false,
   })
 
   // task_budget.remaining tracking across compaction boundaries. Undefined

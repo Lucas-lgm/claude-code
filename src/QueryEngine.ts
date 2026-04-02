@@ -39,6 +39,8 @@ import type { AppState } from './state/AppState.js'
 import { type Tools, type ToolUseContext, toolMatchesName } from './Tool.js'
 import type { AgentDefinition } from './tools/AgentTool/loadAgentsDir.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from './tools/SyntheticOutputTool/SyntheticOutputTool.js'
+import { TASK_CREATE_TOOL_NAME } from './tools/TaskCreateTool/constants.js'
+import { TASK_UPDATE_TOOL_NAME } from './tools/TaskUpdateTool/constants.js'
 import type { Message } from './types/message.js'
 import type { OrphanedPermission } from './types/textInputTypes.js'
 import { createAbortController } from './utils/abortController.js'
@@ -59,7 +61,11 @@ import {
 import { headlessProfilerCheckpoint } from './utils/headlessProfiler.js'
 import { registerStructuredOutputEnforcement } from './utils/hooks/hookHelpers.js'
 import { getInMemoryErrors } from './utils/log.js'
-import { countToolCalls, SYNTHETIC_MESSAGES } from './utils/messages.js'
+import {
+  countToolCalls,
+  createUserMessage,
+  SYNTHETIC_MESSAGES,
+} from './utils/messages.js'
 import {
   getMainLoopModel,
   parseUserSpecifiedModel,
@@ -77,6 +83,7 @@ import {
 } from './utils/sessionStorage.js'
 import { asSystemPrompt } from './utils/systemPromptType.js'
 import { resolveThemeSetting } from './utils/systemTheme.js'
+import { getTaskListId, listTasks } from './utils/tasks.js'
 import {
   shouldEnableThinkingByDefault,
   type ThinkingConfig,
@@ -189,6 +196,9 @@ export class QueryEngine {
   private totalUsage: NonNullableUsage
   private hasHandledOrphanedPermission = false
   private readFileState: FileStateCache
+  private touchedTaskIds = new Set<string>()
+  private pendingCreatedTaskUseIds = new Set<string>()
+  private touchedTaskTrackingEnabled = true
   // Turn-scoped skill discovery tracking (feeds was_discovered on
   // tengu_skill_tool_invocation). Must persist across the two
   // processUserInputContext rebuilds inside submitMessage, but is cleared
@@ -210,6 +220,10 @@ export class QueryEngine {
     prompt: string | ContentBlockParam[],
     options?: { uuid?: string; isMeta?: boolean },
   ): AsyncGenerator<SDKMessage, void, unknown> {
+    if (options?.isMeta !== true || this.touchedTaskTrackingEnabled) {
+      this.touchedTaskIds.clear()
+      this.pendingCreatedTaskUseIds.clear()
+    }
     const {
       cwd,
       commands,
@@ -765,6 +779,7 @@ export class QueryEngine {
           if (message.message.stop_reason != null) {
             lastStopReason = message.message.stop_reason
           }
+          this.trackTouchedTasksFromAssistant(message)
           this.mutableMessages.push(message)
           yield* normalizeMessage(message)
           break
@@ -782,6 +797,7 @@ export class QueryEngine {
           yield* normalizeMessage(message)
           break
         case 'user':
+          this.trackTouchedTasksFromUser(message)
           this.mutableMessages.push(message)
           yield* normalizeMessage(message)
           break
@@ -1055,6 +1071,32 @@ export class QueryEngine {
     // return '' and -p mode emit a blank line. Allowlist to assistant|user:
     // isResultSuccessful handles both (user with all tool_result blocks is a
     // valid successful terminal state).
+    const incompleteTouchedTasks = await this.getIncompleteTouchedTasks()
+    if (incompleteTouchedTasks.length > 0 && this.touchedTaskTrackingEnabled) {
+      const reminderMessage = createUserMessage({
+        content:
+          'Before you finish, update the task list for the work you just did. Mark tasks you started as in_progress, and mark completed work as completed. Open tasks: ' +
+          incompleteTouchedTasks
+            .map(task => `#${task.id} (${task.status}) ${task.subject}`)
+            .join('; '),
+        isMeta: true,
+      })
+      this.mutableMessages.push(reminderMessage)
+      if (persistSession) {
+        await recordTranscript([...messages, reminderMessage])
+      }
+      this.touchedTaskTrackingEnabled = false
+      try {
+        yield* this.submitMessage(reminderMessage.message.content, {
+          uuid: reminderMessage.uuid,
+          isMeta: true,
+        })
+      } finally {
+        this.touchedTaskTrackingEnabled = true
+      }
+      return
+    }
+
     const result = messages.findLast(
       m => m.type === 'assistant' || m.type === 'user',
     )
@@ -1155,6 +1197,83 @@ export class QueryEngine {
       ),
       uuid: randomUUID(),
     }
+  }
+
+  private trackTouchedTasksFromAssistant(message: Message): void {
+    if (
+      message.type !== 'assistant' ||
+      !Array.isArray(message.message.content) ||
+      message.message.content.length === 0
+    ) {
+      return
+    }
+
+    for (const block of message.message.content) {
+      if (block.type !== 'tool_use') {
+        continue
+      }
+      if (block.name === TASK_CREATE_TOOL_NAME) {
+        this.pendingCreatedTaskUseIds.add(block.id)
+        continue
+      }
+      if (block.name !== TASK_UPDATE_TOOL_NAME) {
+        continue
+      }
+      if (typeof block.input !== 'object' || block.input === null) {
+        continue
+      }
+      const taskId = (block.input as { taskId?: unknown }).taskId
+      if (typeof taskId === 'string' && taskId.length > 0) {
+        this.touchedTaskIds.add(taskId)
+      }
+    }
+  }
+
+  private trackTouchedTasksFromUser(message: Message): void {
+    if (
+      message.type !== 'user' ||
+      !Array.isArray(message.message.content) ||
+      message.message.content.length === 0 ||
+      this.pendingCreatedTaskUseIds.size === 0
+    ) {
+      return
+    }
+
+    for (const block of message.message.content) {
+      if (block.type !== 'tool_result') {
+        continue
+      }
+      if (!this.pendingCreatedTaskUseIds.has(block.tool_use_id)) {
+        continue
+      }
+      const toolUseResult = message.toolUseResult as
+        | { task?: { id?: unknown } }
+        | undefined
+      const taskId = toolUseResult?.task?.id
+      if (typeof taskId === 'string' && taskId.length > 0) {
+        this.touchedTaskIds.add(taskId)
+      }
+      this.pendingCreatedTaskUseIds.delete(block.tool_use_id)
+    }
+  }
+
+  private async getIncompleteTouchedTasks(): Promise<
+    Array<{ id: string; subject: string; status: string }>
+  > {
+    if (this.touchedTaskIds.size === 0) {
+      return []
+    }
+    const tasks = await listTasks(getTaskListId())
+    return tasks
+      .filter(
+        task =>
+          this.touchedTaskIds.has(task.id) && task.status !== 'completed',
+      )
+      .map(task => ({
+        id: task.id,
+        subject: task.subject,
+        status: task.status,
+      }))
   }
 
   interrupt(): void {
