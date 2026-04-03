@@ -945,8 +945,8 @@ function createResponsesAPIAdapter(
             model: params.model,
             input,
             stream: true,
+            store: false,
             ...(instructions && { instructions }),
-            ...(params.max_tokens && { max_output_tokens: params.max_tokens }),
             ...(!isReasoningModel && params.temperature != null && { temperature: params.temperature }),
             ...(tools && { tools }),
             ...(tools && toolChoice && { tool_choice: toolChoice }),
@@ -1085,6 +1085,7 @@ function createChatCompletionsAdapter(
             model: params.model,
             messages: openaiMessages,
             stream: true,
+            store: false,
             stream_options: { include_usage: true },
             max_completion_tokens: params.max_tokens,
             // Reasoning models don't support temperature
